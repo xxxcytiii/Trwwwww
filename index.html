@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily CheckList</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --bg-color: #f3f4f6;
+            --bg-color-dark: #121212;
+            --checkbox-color: #5D5CDE;
+            --checkbox-color-dark: #7775f5;
+        }
+        
+        body {
+            background-color: var(--bg-color);
+        }
+        
+        .dark body {
+            background-color: var(--bg-color-dark);
+        }
+        
+        .checkbox-container {
+            transition: all 0.2s ease;
+        }
+        .checkbox-container:hover {
+            transform: translateY(-2px);
+        }
+        .task-list-item {
+            animation: fadeIn 0.3s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .task-list-item.removing {
+            animation: fadeOut 0.3s ease-out forwards;
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(10px); }
+        }
+        /* 自定義複選框樣式 */
+        .custom-checkbox {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 1.25rem;
+            height: 1.25rem;
+            border: 2px solid var(--checkbox-color);
+            border-radius: 0.25rem;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .custom-checkbox:checked {
+            background-color: var(--checkbox-color);
+        }
+        .custom-checkbox:checked::after {
+            content: '✓';
+            position: absolute;
+            color: white;
+            font-size: 0.875rem;
+            top: -0.0625rem;
+            left: 0.125rem;
+        }
+        .dark .custom-checkbox {
+            border-color: var(--checkbox-color-dark);
+        }
+        .dark .custom-checkbox:checked {
+            background-color: var(--checkbox-color-dark);
+        }
+        
+        .category-item {
+            transition: all 0.2s ease;
+        }
+        
+        .category-item.active {
+            border-color: var(--checkbox-color);
+            background-color: rgba(93, 92, 222, 0.1);
+        }
+        
+        .dark .category-item.active {
+            border-color: var(--checkbox-color-dark);
+            background-color: rgba(119, 117, 245, 0.1);
+        }
+        
+        .category-item.new {
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 0.7; }
+            50% { opacity: 1; }
+            100% { opacity: 0.7; }
+        }
+    </style>
+</head>
+<body class="min-h-screen transition-colors duration-300">
+    <div class="container mx-auto px-4 py-6 max-w-md">
+        <!-- 類別區域 -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 mb-4">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-lg font-medium text-gray-700 dark:text-gray-300">Daily CheckList</h2>
+                <button id="addCategoryBtn" class="text-primary dark:text-primary-400 hover:text-primary-600 dark:hover:text-primary-300 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    新增類別
+                </button>
+            </div>
+            <div id="categoryContainer" class="grid grid-cols-2 gap-2 mb-4">
+                <!-- 類別項目將在這裡動態添加 -->
+            </div>
+            <div id="newCategoryForm" class="mt-3 mb-4 hidden">
+                <div class="flex items-center">
+                    <input type="text" id="newCategoryName" placeholder="輸入類別名稱" 
+                        class="flex-grow px-3 py-2 text-base border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                    <button id="saveCategoryBtn" 
+                        class="bg-primary hover:bg-primary/90 text-white px-3 py-2 rounded-r-lg transition-colors">
+                        保存
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 新增活動輸入框 -->
+            <div class="flex items-center mb-2">
+                <input type="text" id="newTask" placeholder="新增活動..." 
+                    class="flex-grow px-4 py-2 text-base border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                <button id="addTaskBtn" 
+                    class="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-r-lg transition-colors">
+                    新增
+                </button>
+            </div>
+        </div>
+        
+        <!-- 任務區域 -->
+        <div id="taskSection" class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
+            <div class="border-b border-gray-200 dark:border-gray-700 mb-4 pb-2">
+                <div class="text-lg font-medium text-gray-700 dark:text-gray-300" id="currentCategoryTitle">選擇一個類別</div>
+            </div>
+            
+            <div id="taskList" class="space-y-3">
+                <!-- 任務項將在這裡動態添加 -->
+            </div>
+            
+            <div class="mt-6 text-center" id="emptyState">
+                <p class="text-gray-500 dark:text-gray-400">點擊上方新增您想要追蹤的活動</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 检测暗黑模式
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+
+        // 获取DOM元素
+        const newTaskInput = document.getElementById('newTask');
+        const addTaskBtn = document.getElementById('addTaskBtn');
+        const taskList = document.getElementById('taskList');
+        const emptyState = document.getElementById('emptyState');
+        const currentCategoryTitle = document.getElementById('currentCategoryTitle');
+        const categoryContainer = document.getElementById('categoryContainer');
+        const addCategoryBtn = document.getElementById('addCategoryBtn');
+        const newCategoryForm = document.getElementById('newCategoryForm');
+        const newCategoryName = document.getElementById('newCategoryName');
+        const saveCategoryBtn = document.getElementById('saveCategoryBtn');
+        const taskSection = document.getElementById('taskSection');
+
+        // 存储类别和任务
+        let categories = [];
+        let currentCategoryId = null;
+        let lastResetDate = null;
+
+        // 本地存储功能
+        function saveData() {
+            try {
+                localStorage.setItem('dailyCheckList', JSON.stringify({
+                    categories: categories,
+                    currentCategoryId: currentCategoryId,
+                    lastResetDate: lastResetDate
+                }));
+            } catch (error) {
+                console.log('無法保存數據到本地存儲');
+            }
+        }
+
+        function loadData() {
+            try {
+                const saved = localStorage.getItem('dailyCheckList');
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    categories = data.categories || [];
+                    currentCategoryId = data.currentCategoryId || null;
+                    lastResetDate = data.lastResetDate || null;
+                    return true;
+                }
+            } catch (error) {
+                console.log('無法從本地存儲加載數據');
+            }
+            return false;
+        }
+
+        // 检查是否需要重置任务
+        function checkForReset() {
+            const now = new Date();
+            // 获取UTC+8的日期
+            const utc8Date = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+            const today = utc8Date.toISOString().split('T')[0];
+            
+            if (lastResetDate !== today) {
+                // 重置所有任务的完成状态
+                categories.forEach(category => {
+                    category.tasks.forEach(task => task.completed = false);
+                });
+                lastResetDate = today;
+                saveData();
+                renderTasks();
+            }
+        }
+
+        // 添加新任务
+        function addTask() {
+            if (!currentCategoryId) return;
+            
+            const taskText = newTaskInput.value.trim();
+            if (taskText) {
+                const category = categories.find(c => c.id === currentCategoryId);
+                if (category) {
+                    category.tasks.push({
+                        id: Date.now(),
+                        text: taskText,
+                        completed: false
+                    });
+                    newTaskInput.value = '';
+                    saveData();
+                    renderTasks();
+                }
+            }
+        }
+
+        // 删除任务
+        function deleteTask(id) {
+            if (!currentCategoryId) return;
+            
+            const category = categories.find(c => c.id === currentCategoryId);
+            if (!category) return;
+            
+            const taskElement = document.getElementById(`task-${id}`);
+            taskElement.classList.add('removing');
+            
+            setTimeout(() => {
+                category.tasks = category.tasks.filter(task => task.id !== id);
+                saveData();
+                renderTasks();
+            }, 300);
+        }
+
+        // 切换任务完成状态
+        function toggleTaskCompletion(id) {
+            if (!currentCategoryId) return;
+            
+            const category = categories.find(c => c.id === currentCategoryId);
+            if (!category) return;
+            
+            const task = category.tasks.find(task => task.id === id);
+            if (task) {
+                task.completed = !task.completed;
+                saveData();
+            }
+        }
+
+        // 添加新类别
+        function addCategory() {
+            const name = newCategoryName.value.trim();
+            if (name) {
+                const newCategory = {
+                    id: Date.now(),
+                    name: name,
+                    tasks: []
+                };
+                
+                categories.push(newCategory);
+                newCategoryName.value = '';
+                newCategoryForm.classList.add('hidden');
+                
+                saveData();
+                renderCategories();
+                selectCategory(newCategory.id);
+            }
+        }
+
+        // 删除类别
+        function deleteCategory(id) {
+            categories = categories.filter(c => c.id !== id);
+            
+            if (currentCategoryId === id) {
+                currentCategoryId = categories.length > 0 ? categories[0].id : null;
+            }
+            
+            saveData();
+            renderCategories();
+            
+            if (currentCategoryId) {
+                selectCategory(currentCategoryId);
+            } else {
+                taskSection.classList.add('hidden');
+                currentCategoryTitle.textContent = '選擇一個類別';
+            }
+        }
+
+        // 选择类别
+        function selectCategory(id) {
+            currentCategoryId = id;
+            
+            // 更新UI样式
+            document.querySelectorAll('.category-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            const selectedItem = document.getElementById(`category-${id}`);
+            if (selectedItem) {
+                selectedItem.classList.add('active');
+            }
+            
+            // 更新当前类别标题
+            const category = categories.find(c => c.id === id);
+            if (category) {
+                currentCategoryTitle.textContent = category.name;
+                taskSection.classList.remove('hidden');
+                renderTasks();
+                saveData();
+            }
+        }
+
+        // 渲染类别列表
+        function renderCategories() {
+            categoryContainer.innerHTML = '';
+            
+            categories.forEach(category => {
+                const categoryElement = document.createElement('div');
+                categoryElement.className = 'category-item border rounded-lg p-3 flex justify-between items-center cursor-pointer hover:shadow-md transition-shadow';
+                categoryElement.id = `category-${category.id}`;
+                
+                categoryElement.innerHTML = `
+                    <span class="text-gray-800 dark:text-gray-200 font-medium">${category.name}</span>
+                    <button class="text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 transition-colors delete-category-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                `;
+                
+                categoryContainer.appendChild(categoryElement);
+                
+                // 点击类别切换
+                categoryElement.addEventListener('click', (e) => {
+                    // 如果点击的是删除按钮，不触发类别切换
+                    if (!e.target.closest('.delete-category-btn')) {
+                        selectCategory(category.id);
+                    }
+                });
+                
+                // 删除类别按钮
+                const deleteBtn = categoryElement.querySelector('.delete-category-btn');
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    deleteCategory(category.id);
+                });
+            });
+            
+            // 添加"新增类别"卡片
+            const newCategoryCard = document.createElement('div');
+            newCategoryCard.className = 'category-item new border border-dashed rounded-lg p-3 flex justify-center items-center cursor-pointer hover:shadow-md transition-shadow';
+            newCategoryCard.innerHTML = `
+                <span class="text-primary dark:text-primary-400 font-medium flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    新增類別
+                </span>
+            `;
+            
+            newCategoryCard.addEventListener('click', () => {
+                newCategoryForm.classList.remove('hidden');
+                newCategoryName.focus();
+            });
+            
+            // 如果没有类别，添加一个特殊样式
+            if (categories.length === 0) {
+                newCategoryCard.classList.add('col-span-2');
+            }
+            
+            categoryContainer.appendChild(newCategoryCard);
+        }
+
+        // 渲染任务列表
+        function renderTasks() {
+            if (!currentCategoryId) return;
+            
+            const category = categories.find(c => c.id === currentCategoryId);
+            if (!category) return;
+            
+            taskList.innerHTML = '';
+            
+            if (category.tasks.length === 0) {
+                emptyState.style.display = 'block';
+                return;
+            }
+            
+            emptyState.style.display = 'none';
+            
+            category.tasks.forEach(task => {
+                const taskElement = document.createElement('div');
+                taskElement.className = 'flex items-center justify-between bg-gray-50 dark:bg-gray-750 p-3 rounded-lg task-list-item';
+                taskElement.id = `task-${task.id}`;
+                
+                taskElement.innerHTML = `
+                    <div class="flex items-center checkbox-container">
+                        <input type="checkbox" id="checkbox-${task.id}" class="custom-checkbox mr-3" ${task.completed ? 'checked' : ''}>
+                        <label for="checkbox-${task.id}" class="text-gray-800 dark:text-gray-200 cursor-pointer ${task.completed ? 'line-through text-gray-500 dark:text-gray-400' : ''}">
+                            ${task.text}
+                        </label>
+                    </div>
+                    <button class="text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                `;
+                
+                taskList.appendChild(taskElement);
+                
+                // 添加事件监听器
+                const checkbox = taskElement.querySelector(`#checkbox-${task.id}`);
+                checkbox.addEventListener('change', () => {
+                    toggleTaskCompletion(task.id);
+                    const label = taskElement.querySelector('label');
+                    if (checkbox.checked) {
+                        label.classList.add('line-through', 'text-gray-500', 'dark:text-gray-400');
+                    } else {
+                        label.classList.remove('line-through', 'text-gray-500', 'dark:text-gray-400');
+                    }
+                });
+                
+                const deleteButton = taskElement.querySelector('button');
+                deleteButton.addEventListener('click', () => deleteTask(task.id));
+            });
+        }
+
+        // 添加事件监听器
+        addTaskBtn.addEventListener('click', addTask);
+        newTaskInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addTask();
+        });
+        
+        addCategoryBtn.addEventListener('click', () => {
+            newCategoryForm.classList.remove('hidden');
+            newCategoryName.focus();
+        });
+        
+        saveCategoryBtn.addEventListener('click', addCategory);
+        newCategoryName.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addCategory();
+        });
+
+        // 初始化
+        function initialize() {
+            const now = new Date();
+            const utc8Date = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+            const today = utc8Date.toISOString().split('T')[0];
+            
+            // 嘗試從本地存儲加載數據
+            const dataLoaded = loadData();
+            
+            if (!dataLoaded || categories.length === 0) {
+                // 如果沒有保存的數據，使用示例數據
+                lastResetDate = today;
+                categories = [
+                    {
+                        id: 1,
+                        name: '健康習慣',
+                        tasks: [
+                            { id: 101, text: '喝水 (8杯)', completed: false },
+                            { id: 102, text: '運動 (30分鐘)', completed: false },
+                            { id: 103, text: '早睡早起', completed: false }
+                        ]
+                    },
+                    {
+                        id: 2,
+                        name: '學習計劃',
+                        tasks: [
+                            { id: 201, text: '閱讀 (20頁)', completed: false },
+                            { id: 202, text: '複習筆記', completed: false }
+                        ]
+                    },
+                    {
+                        id: 3,
+                        name: '工作任務',
+                        tasks: [
+                            { id: 301, text: '回覆郵件', completed: false },
+                            { id: 302, text: '準備會議', completed: false },
+                            { id: 303, text: '完成報告', completed: false }
+                        ]
+                    }
+                ];
+                currentCategoryId = categories[0].id;
+                saveData();
+            } else {
+                // 確認lastResetDate存在
+                if (!lastResetDate) {
+                    lastResetDate = today;
+                }
+            }
+            
+            // 檢查是否需要重置
+            checkForReset();
+            
+            renderCategories();
+            
+            // 选择当前类别或默认选择第一个类别
+            if (currentCategoryId && categories.find(c => c.id === currentCategoryId)) {
+                selectCategory(currentCategoryId);
+            } else if (categories.length > 0) {
+                selectCategory(categories[0].id);
+            } else {
+                taskSection.classList.add('hidden');
+            }
+            
+            // 设置定时器
+            setInterval(checkForReset, 60000); // 每分钟检查一次
+        }
+
+        // 启动应用
+        initialize();
+    </script>
+</body>
+</html>
